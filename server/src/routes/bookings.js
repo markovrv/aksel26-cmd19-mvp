@@ -50,7 +50,12 @@ router.post("/", async (req, res) => {
 			],
 		);
 
-		// TODO: Send VK notification if configured
+		// Send VK notification about new booking
+		const { sendVkNotify } = await import("../utils/vkNotify.js");
+		const tourInfo = tour.title || `экскурсия #${tour_id}`;
+		await sendVkNotify(
+			`📩 Новая заявка на экскурсию!\n\n👤 ${full_name}\n📧 ${email}\n📱 ${phone || "—"}\n🎫 ${tourInfo}\n👥 ${group_size} чел.\n📅 ${desired_date || "не указана"}\n\nСтатус: Новая (ожидает рассмотрения)`,
+		);
 
 		res.status(201).json({
 			message: "Заявка успешно отправлена",

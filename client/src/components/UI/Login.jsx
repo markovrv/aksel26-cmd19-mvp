@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../../App";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Login() {
 	const [email, setEmail] = useState("");
@@ -93,19 +93,39 @@ export default function Login() {
 
 				<div className="mt-8 pt-6 border-t border-gray-200">
 					<p className="text-sm text-gray-500 text-center mb-4">
-						Демо-доступы:
+						Демо-доступы (нажмите для автовхода):
 					</p>
 					<div className="grid grid-cols-2 gap-4 text-xs">
-						<div className="bg-gray-50 p-3 rounded-lg">
+						<button
+							type="button"
+							onClick={() => {
+								setEmail("admin@promorientir.ru");
+								setPassword("admin123");
+								setTimeout(() => {
+									document.querySelector("form").requestSubmit();
+								}, 100);
+							}}
+							className="bg-gray-50 p-3 rounded-lg text-left hover:bg-primary-orange/10 hover:border-primary-orange border border-transparent transition-all cursor-pointer"
+						>
 							<p className="font-medium">Администратор</p>
 							<p className="text-gray-500">admin@promorientir.ru</p>
 							<p className="text-gray-500">admin123</p>
-						</div>
-						<div className="bg-gray-50 p-3 rounded-lg">
+						</button>
+						<button
+							type="button"
+							onClick={() => {
+								setEmail("enterprise1@demo.ru");
+								setPassword("enterprise123");
+								setTimeout(() => {
+									document.querySelector("form").requestSubmit();
+								}, 100);
+							}}
+							className="bg-gray-50 p-3 rounded-lg text-left hover:bg-primary-orange/10 hover:border-primary-orange border border-transparent transition-all cursor-pointer"
+						>
 							<p className="font-medium">Предприятие</p>
 							<p className="text-gray-500">enterprise1@demo.ru</p>
 							<p className="text-gray-500">enterprise123</p>
-						</div>
+						</button>
 					</div>
 				</div>
 			</div>

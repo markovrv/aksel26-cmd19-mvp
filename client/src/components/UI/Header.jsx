@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../../App";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Header() {
 	const { user, logout } = useAuth();
@@ -65,27 +65,29 @@ export default function Header() {
 					<div className="flex items-center gap-3">
 						{user ? (
 							<>
-								<Link
-									to="/my-bookings"
-									className="hidden sm:flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-primary-orange transition-colors"
-								>
-									<svg
-										className="w-5 h-5"
-										fill="none"
-										stroke="currentColor"
-										viewBox="0 0 24 24"
+								{user.role !== "admin" && (
+									<Link
+										to="/bookings"
+										className="hidden sm:flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-primary-orange transition-colors"
 									>
-										<path
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth={2}
-											d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-										/>
-									</svg>
-									Мои заявки
-								</Link>
+										<svg
+											className="w-5 h-5"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												strokeWidth={2}
+												d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+											/>
+										</svg>
+										Мои заявки
+									</Link>
+								)}
 
-								{(user.role === "enterprise" || user.role === "admin") && (
+								{user.role === "enterprise" && (
 									<Link
 										to="/enterprise-lk"
 										className="hidden sm:flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-primary-blue transition-colors"

@@ -36,6 +36,12 @@ router.post("/register", async (req, res) => {
 		const user = { id: result.lastID, email, role, name };
 		const token = generateToken(user);
 
+		// Send VK notification about new registration
+		const { sendVkNotify } = await import("../utils/vkNotify.js");
+		await sendVkNotify(
+			`👤 Новый пользователь зарегистрирован!\n\n📧 ${email}\n👤 ${name || "—"}\n🎭 Роль: ${role}\n\nID: ${result.lastID}`,
+		);
+
 		res.status(201).json({ user, token });
 	} catch (err) {
 		console.error("Register error:", err);

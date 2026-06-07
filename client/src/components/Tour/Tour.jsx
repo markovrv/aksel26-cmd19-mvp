@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { tours, bookings, places } from "../../api";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Tour() {
 	const { id } = useParams();
 	const navigate = useNavigate();
+	const { user } = useAuth();
 	const [tour, setTour] = useState(null);
 	const [nearbyPlaces, setNearbyPlaces] = useState({});
 	const [loading, setLoading] = useState(true);
@@ -12,8 +14,8 @@ export default function Tour() {
 	const [submitting, setSubmitting] = useState(false);
 	const [bookingSuccess, setBookingSuccess] = useState(false);
 	const [formData, setFormData] = useState({
-		full_name: "",
-		email: "",
+		full_name: user?.name || "",
+		email: user?.email || "",
 		phone: "",
 		group_size: 1,
 		desired_date: "",
@@ -57,7 +59,7 @@ export default function Tour() {
 				...formData,
 			});
 			setBookingSuccess(true);
-			setTimeout(() => navigate("/booking-success"), 1500);
+			setTimeout(() => navigate("/booking-success", { state: { tour } }), 1500);
 		} catch (err) {
 			alert(err.message || "Ошибка отправки заявки");
 		} finally {

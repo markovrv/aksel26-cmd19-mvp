@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS enterprises (
   vk_group_url TEXT,
   has_360 BOOLEAN DEFAULT 0,
   has_ar BOOLEAN DEFAULT 0,
+  panorama_url TEXT DEFAULT '',
+  coords TEXT DEFAULT '',
   certifications TEXT DEFAULT '[]',
   live_stats TEXT DEFAULT '{}',
   souvenirs TEXT DEFAULT '[]',
@@ -109,6 +111,16 @@ CREATE TABLE IF NOT EXISTS analytics_events (
   filter_value TEXT,
   user_id INTEGER REFERENCES users(id),
   session_id TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Regions table (info for map panels)
+CREATE TABLE IF NOT EXISTS regions (
+  name TEXT PRIMARY KEY,
+  title TEXT DEFAULT '',
+  description TEXT DEFAULT '',
+  video_url TEXT DEFAULT '',
+  coords TEXT DEFAULT '',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

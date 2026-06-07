@@ -1,46 +1,33 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { tours } from "../../api";
 
 export default function Compare() {
 	const navigate = useNavigate();
 	const [compareList, setCompareList] = useState([]);
-	const [toursData, setToursData] = useState([]);
-	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
-		// Get tours from localStorage
-		const saved = localStorage.getItem("compare_tours");
+		const saved = sessionStorage.getItem("compareList");
 		if (saved) {
-			setCompareList(JSON.parse(saved));
+			try {
+				const list = JSON.parse(saved);
+				if (list.length >= 2) {
+					setCompareList(list);
+				} else {
+					navigate("/catalog");
+				}
+			} catch (e) {
+				navigate("/catalog");
+			}
 		} else {
 			navigate("/catalog");
 		}
-	}, []);
-
-	useEffect(() => {
-		if (compareList.length > 0) {
-			loadTours();
-		}
-	}, [compareList]);
-
-	const loadTours = async () => {
-		setLoading(true);
-		try {
-			const data = await Promise.all(compareList.map((id) => tours.get(id)));
-			setToursData(data.map((d) => d.tour));
-		} catch (err) {
-			console.error("Error loading tours:", err);
-		} finally {
-			setLoading(false);
-		}
-	};
+	}, [navigate]);
 
 	const removeFromCompare = (id) => {
-		const newList = compareList.filter((tourId) => tourId !== id);
+		const newList = compareList.filter((t) => t.id !== id);
 		setCompareList(newList);
-		localStorage.setItem("compare_tours", JSON.stringify(newList));
-		if (newList.length === 0) {
+		sessionStorage.setItem("compareList", JSON.stringify(newList));
+		if (newList.length < 2) {
 			navigate("/catalog");
 		}
 	};
@@ -55,7 +42,9 @@ export default function Compare() {
 		return labels[duration] || duration;
 	};
 
-	if (loading || toursData.length === 0) {
+	const toursData = compareList;
+
+	if (toursData.length === 0) {
 		return (
 			<div className="container mx-auto px-4 py-12">
 				<div className="text-center">
@@ -242,6 +231,43 @@ export default function Compare() {
 									{tour.ppe_required ? "🦺 Обязательно" : "—"}
 								</td>
 							))}
+						</tr>
+
+						{/* 🏆 Бонусная шкала */}
+						<tr className="border-b bg-gradient-to-r from-yellow-50 to-orange-50">
+							<td className="p-4 font-medium">🏆 Бонусная шкала</td>
+							{toursData.map((tour) => {
+								const bonusPoints = (tour.has_souvenirs ? 25 : 0) +
+									(tour.has_degustation ? 30 : 0) +
+									(tour.has_photo_spots ? 20 : 0) +
+									(tour.food_on_site ? 15 : 0) +
+									(tour.interactivity_level >= 8 ? 10 : 0);
+								const maxBonus = 100;
+								return (
+									<td key={tour.id} className="p-4 text-center">
+										<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 text-white font-bold text-lg shadow-md">
+											{bonusPoints}
+										</div>
+										<div className="mt-2 h-2 bg-gray-200 rounded-full max-w-32 mx-auto overflow-hidden">
+											<div
+												className="h-full rounded-full bg-gradient-to-r from-yellow-400 to-orange-500"
+												style={{ width: `${Math.min(bonusPoints, maxBonus)}%` }}
+											></div>
+										</div>
+										<div className="text-xs text-gray-500 mt-1">
+											{(tour.has_souvenirs ? "🎁 " : "")}
+											{(tour.has_degustation ? "🍬 " : "")}
+											{(tour.has_photo_spots ? "📸 " : "")}
+											{(tour.food_on_site ? "🍽️" : "")}
+										</div>
+										<div className="text-xs text-gray-400 mt-1">
+											{bonusPoints >= 70 ? "🔥 Супер" :
+											 bonusPoints >= 40 ? "👍 Хорошо" :
+											 bonusPoints >= 20 ? "👌 Средне" : "—"}
+										</div>
+									</td>
+								);
+							})}
 						</tr>
 
 						{/* Type */}

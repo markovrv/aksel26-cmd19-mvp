@@ -13,10 +13,18 @@ export default function Enterprise() {
 		loadEnterprise();
 	}, [id]);
 
+	const parsePhotos = (val) => {
+		if (!val) return [];
+		return val.split(",").map(s => s.trim()).filter(Boolean);
+	};
+
 	const loadEnterprise = async () => {
 		try {
 			const data = await enterprises.get(id);
-			setEnterprise(data.enterprise);
+			const ent = data.enterprise;
+			// Преобразуем vk_photos_url (строка URL через запятую) в массив photoUrls
+			ent.photoUrls = parsePhotos(ent.vk_photos_url);
+			setEnterprise(ent);
 		} catch (err) {
 			setError("Ошибка загрузки предприятия");
 		} finally {
@@ -181,17 +189,42 @@ export default function Enterprise() {
 								</div>
 							)}
 
-							{/* Photos */}
-							{enterprise.vk_photos_url && (
+							{/* Фотогалерея */}
+							{enterprise.photoUrls && enterprise.photoUrls.length > 0 && (
 								<div className="card p-6">
 									<h2 className="text-xl font-semibold mb-4">Фотогалерея</h2>
-									<div className="aspect-video rounded-xl overflow-hidden bg-gray-100">
-										<iframe
-											src={`https://vk.com/widget_photos.php?oid=-102969270&album_id=0`}
-											className="w-full h-full"
-											title="Photos"
-										/>
-									</div>
+									{enterprise.photoUrls.length === 1 ? (
+										<div className="rounded-xl overflow-hidden bg-gray-100">
+											<img
+												src={enterprise.photoUrls[0]}
+												alt={enterprise.name}
+												className="w-full h-auto object-cover max-h-[500px]"
+												onError={(e) => { e.target.style.display = 'none'; }}
+											/>
+										</div>
+									) : (
+										<div className="relative">
+											<div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-thin">
+												{enterprise.photoUrls.map((url, idx) => (
+													<div key={idx} className="snap-start shrink-0 w-[300px] md:w-[400px]">
+														<div className="aspect-video rounded-xl overflow-hidden bg-gray-100">
+															<img
+																src={url}
+																alt={`${enterprise.name} фото ${idx + 1}`}
+																className="w-full h-full object-cover"
+																onError={(e) => { e.target.style.display = 'none'; }}
+															/>
+														</div>
+													</div>
+												))}
+											</div>
+											{enterprise.photoUrls.length > 1 && (
+												<div className="text-xs text-gray-400 text-center mt-2">
+													{enterprise.photoUrls.length} фото
+												</div>
+											)}
+										</div>
+									)}
 								</div>
 							)}
 
@@ -226,19 +259,28 @@ export default function Enterprise() {
 
 					{activeTab === "myth" && (
 						<div className="space-y-6">
-							{/* 360 Tour */}
+							{/* Panorama */}
 							<div className="card p-6">
-								<h2 className="text-xl font-semibold mb-4">360°-тур</h2>
+								<h2 className="text-xl font-semibold mb-4">🌐 Панорама производства</h2>
 								<div className="aspect-video rounded-xl bg-gray-100 flex items-center justify-center">
-									{enterprise.has_360 ? (
+									{enterprise.panorama_url ? (
+										<div className="text-center">
+											<iframe
+												src={enterprise.panorama_url}
+												className="w-full h-full absolute inset-0 rounded-xl"
+												allowFullScreen
+												title="Panorama"
+											/>
+										</div>
+									) : enterprise.has_360 ? (
 										<div className="text-center">
 											<div className="text-4xl mb-2">🔜</div>
-											<p>Контент в разработке</p>
+											<p>Панорама готовится к публикации</p>
 										</div>
 									) : (
 										<div className="text-center text-gray-400">
 											<div className="text-4xl mb-2">🚫</div>
-											<p>360°-тур не доступен</p>
+											<p>Панорама не загружена</p>
 										</div>
 									)}
 								</div>

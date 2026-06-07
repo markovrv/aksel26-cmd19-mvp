@@ -58,6 +58,10 @@ export const tours = {
 		const query = new URLSearchParams(params).toString();
 		return request(`/tours/meta/filters${query ? `?${query}` : ""}`);
 	},
+	cascade: (params = {}) => {
+		const query = new URLSearchParams(params).toString();
+		return request(`/tours/meta/cascade${query ? `?${query}` : ""}`);
+	},
 };
 
 // Bookings
@@ -75,10 +79,19 @@ export const bookings = {
 // Places
 export const places = {
 	list: (params = {}) => {
-		const query = new URLSearchParams(params).toString();
+		const clean = Object.fromEntries(
+			Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== "")
+		);
+		const query = new URLSearchParams(clean).toString();
 		return request(`/places${query ? `?${query}` : ""}`);
 	},
 	types: () => request("/places/types"),
+	create: (data) =>
+		request("/places", { method: "POST", body: JSON.stringify(data) }),
+	update: (id, data) =>
+		request(`/places/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+	delete: (id) =>
+		request(`/places/${id}`, { method: "DELETE" }),
 };
 
 // Assistant
@@ -110,16 +123,95 @@ export const admin = {
 			method: "PATCH",
 			body: JSON.stringify(data),
 		}),
+	createEnterprise: (data) =>
+		request("/admin/enterprises", { method: "POST", body: JSON.stringify(data) }),
+	updateEnterprise: (id, data) =>
+		request(`/admin/enterprises/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+	deleteEnterprise: (id) =>
+		request(`/admin/enterprises/${id}`, { method: "DELETE" }),
+	tours: () => request("/admin/tours"),
+	createTour: (data) =>
+		request("/admin/tours", { method: "POST", body: JSON.stringify(data) }),
+	updateTour: (id, data) =>
+		request(`/admin/tours/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+	deleteTour: (id) =>
+		request(`/admin/tours/${id}`, { method: "DELETE" }),
+};
+
+// Enterprise LK
+export const enterpriseLK = {
+	profile: () => request("/enterprise-lk/profile"),
+	updateProfile: (data) =>
+		request("/enterprise-lk/profile", {
+			method: "PUT",
+			body: JSON.stringify(data),
+		}),
+	tours: () => request("/enterprise-lk/tours"),
+	createTour: (data) =>
+		request("/enterprise-lk/tours", {
+			method: "POST",
+			body: JSON.stringify(data),
+		}),
+	updateTour: (id, data) =>
+		request(`/enterprise-lk/tours/${id}`, {
+			method: "PUT",
+			body: JSON.stringify(data),
+		}),
+	deleteTour: (id) =>
+		request(`/enterprise-lk/tours/${id}`, {
+			method: "DELETE",
+		}),
+	analytics: () => request("/enterprise-lk/analytics"),
+	adminAll: (params = {}) => {
+		// Удаляем ключи с undefined/null/пустыми значениями
+		const clean = Object.fromEntries(
+			Object.entries(params).filter(([_, v]) => v !== undefined && v !== null && v !== "")
+		);
+		const query = new URLSearchParams(clean).toString();
+		return request(`/enterprise-lk/admin/all${query ? `?${query}` : ""}`);
+	},
+	updateStatus: (id, status) =>
+		request(`/enterprise-lk/admin/${id}/status`, {
+			method: "PATCH",
+			body: JSON.stringify({ status }),
+		}),
+};
+
+// Regions (CRUD for admin)
+export const regions = {
+	list: () => request("/regions"),
+	get: (name) => request(`/regions/${encodeURIComponent(name)}`),
+	create: (data) =>
+		request("/regions", { method: "POST", body: JSON.stringify(data) }),
+	update: (name, data) =>
+		request(`/regions/${encodeURIComponent(name)}`, {
+			method: "PUT",
+			body: JSON.stringify(data),
+		}),
+	delete: (name) =>
+		request(`/regions/${encodeURIComponent(name)}`, { method: "DELETE" }),
 };
 
 // Settings
 export const settings = {
-	get: () => request("/settings"),
+	get: async () => {
+		const data = await request("/settings");
+		// Convert array [{key, value}] -> {key: value}
+		const obj = {};
+		if (Array.isArray(data.settings)) {
+			for (const s of data.settings) {
+				obj[s.key] = s.value;
+			}
+		}
+		return { settings: obj };
+	},
 	update: (data) =>
 		request("/settings", {
 			method: "PUT",
 			body: JSON.stringify(data),
 		}),
+	testVk: () => request("/settings/test-vk", { method: "POST" }),
+	testAi: () => request("/settings/test-ai", { method: "POST" }),
 };
 
 export default {
@@ -131,5 +223,7 @@ export default {
 	assistant,
 	analytics,
 	admin,
+	enterpriseLK,
+	regions,
 	settings,
 };

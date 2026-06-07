@@ -30,6 +30,28 @@ async function getToursForLLM() {
 	}));
 }
 
+// Get places data for LLM context
+async function getPlacesForLLM() {
+	const places = await dbAll(`
+    SELECT id, name, type, address, site_url, region
+    FROM places
+    WHERE is_active = 1
+  `);
+	const grouped = {};
+	for (const p of places) {
+		const key = p.region || "другие";
+		if (!grouped[key]) grouped[key] = [];
+		grouped[key].push({
+			id: p.id,
+			name: p.name,
+			type: p.type,
+			address: p.address,
+			site_url: p.site_url,
+		});
+	}
+	return grouped;
+}
+
 // Get LLM settings
 async function getLLMSettings() {
 	const settings = await dbAll(
@@ -62,16 +84,24 @@ router.post("/chat", llmLimiter, async (req, res) => {
 
 		// Build system prompt
 		const toursData = await getToursForLLM();
+		const placesData = await getPlacesForLLM();
 		const systemPrompt = `${settings.llm_system_prompt_role || "Ты — умный помощник по подбору промышленных экскурсий."}
 
 ${settings.llm_system_prompt_instructions || "Отвечай кратко. Предлагай 3-5 экскурсий с кратким объяснением."}
 
+Ты также можешь рекомендовать места размещения, питания и досуга рядом с предприятиями.
+
 Доступные экскурсии:
 ${JSON.stringify(toursData, null, 2)}
 
-Формат ответа:
-1. Краткий ответ пользователю
-2. Массив ID рекомендованных экскурсий: [1, 3, 5]
+Места для проживания, питания и досуга по регионам:
+${JSON.stringify(placesData, null, 2)}
+
+ВАЖНО! В КОНЦЕ ответа на отдельной строке строго в формате:
+===TOURS===[1,3,5]
+Замени 1,3,5 на ID рекомендованных экскурсий.
+Перед этой строкой напиши пользователю понятный текст-рекомендацию.
+Не используй JSON и никакие другие форматы для ID.
 `;
 
 		const openai = new OpenAI({
@@ -88,19 +118,21 @@ ${JSON.stringify(toursData, null, 2)}
 
 		const content = response.choices[0]?.message?.content || "";
 
-		// Try to extract tour IDs from response
+		// Try to extract tour IDs from ===TOURS===[...] marker
 		let recommendedTours = [];
+		let cleanResponse = content;
 		try {
-			const idMatch = content.match(/\[\s*\d+\s*(,\s*\d+\s*)*\]/);
-			if (idMatch) {
-				recommendedTours = JSON.parse(idMatch[0]);
+			const toursMatch = content.match(/===TOURS===(\[\s*\d+\s*(,\s*\d+\s*)*\])/);
+			if (toursMatch) {
+				recommendedTours = JSON.parse(toursMatch[1]);
+				cleanResponse = content.replace(/===TOURS===.*(\[.*?\])\s*$/, "").trim();
 			}
 		} catch (e) {
 			// Ignore parsing errors
 		}
 
 		res.json({
-			response: content,
+			response: cleanResponse,
 			tours: recommendedTours,
 		});
 	} catch (err) {

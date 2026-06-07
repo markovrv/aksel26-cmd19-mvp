@@ -1,20 +1,16 @@
-# Stage 1: Build
+# Stage 1: Build client inside container (same arch)
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY client/package*.json ./client/
-COPY server/package*.json ./server/
+# Copy client package files
+COPY client/package.json ./client/
 
-# Install dependencies
-RUN npm install && \
-    cd client && npm install && \
-    cd ../server && npm install
+# Install client dependencies
+RUN cd client && npm install
 
-# Copy source files
-COPY . .
+# Copy all client source
+COPY client/ ./client/
 
 # Build client
 RUN cd client && npm run build
@@ -24,20 +20,29 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files and install runtime deps
-COPY package*.json ./
-RUN npm install --production && \
-    cd server && npm install --production
-
-# Copy built client and server
-COPY --from=builder /app/client/dist ./client/dist
-COPY server ./server
-
 # Create data directory
-RUN mkdir -p server/data
+RUN mkdir -p /app/server/data
+
+# Copy server package files and install production deps
+COPY server/package.json ./server/
+RUN cd server && npm install --omit=dev
+
+# Copy server source
+COPY server/ ./server/
+
+# Copy built client from builder stage
+COPY --from=builder /app/client/dist ./client/dist
+
+# Copy entrypoint
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Expose port
 EXPOSE 3000
 
-# Start server
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
+
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["node", "server/src/index.js"]

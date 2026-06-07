@@ -111,15 +111,34 @@ router.post(
 				production_type,
 				description,
 				status = "draft",
+				owner_email,
+				owner_password,
 			} = req.body;
 
+			// Create user with enterprise role if email provided
+			let userId = null;
+			if (owner_email) {
+				const existing = await dbGet("SELECT id FROM users WHERE email = ?", [owner_email]);
+				if (existing) {
+					userId = existing.id;
+				} else {
+					const bcrypt = await import("bcrypt");
+					const passwordHash = await bcrypt.hash(owner_password || "enterprise123", 12);
+					const userResult = await dbRun(
+						"INSERT INTO users (email, password_hash, role, name) VALUES (?, ?, 'enterprise', ?)",
+						[owner_email, passwordHash, name || ""],
+					);
+					userId = userResult.lastID;
+				}
+			}
+
 			const result = await dbRun(
-				`INSERT INTO enterprises (name, region, address, production_type, description, status)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-				[name, region, address, production_type, description, status],
+				`INSERT INTO enterprises (user_id, name, region, address, production_type, description, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				[userId, name, region, address, production_type, description, status],
 			);
 
-			res.status(201).json({ id: result.lastID });
+			res.status(201).json({ id: result.lastID, user_id: userId });
 		} catch (err) {
 			console.error("Create enterprise error:", err);
 			res.status(500).json({ error: "Ошибка создания предприятия" });
@@ -134,13 +153,34 @@ router.put(
 	async (req, res) => {
 		try {
 			const { id } = req.params;
-			const { name, region, address, production_type, description, status } =
-				req.body;
+			const {
+				name, region, address, production_type, description,
+				site_url, vk_group_url, vk_photos_url, vk_video_url,
+				has_360, has_ar, panorama_url, coords,
+				certifications, live_stats, souvenirs, professions, tags,
+				status,
+			} = req.body;
 
 			await dbRun(
-				`UPDATE enterprises SET name = ?, region = ?, address = ?, production_type = ?,
-       description = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-				[name, region, address, production_type, description, status, id],
+				`UPDATE enterprises SET
+					name = ?, region = ?, address = ?, production_type = ?, description = ?,
+					site_url = ?, vk_group_url = ?, vk_photos_url = ?, vk_video_url = ?,
+					has_360 = ?, has_ar = ?, panorama_url = ?, coords = ?,
+					certifications = ?, live_stats = ?, souvenirs = ?, professions = ?, tags = ?,
+					status = ?, updated_at = CURRENT_TIMESTAMP
+				WHERE id = ?`,
+				[
+					name, region, address, production_type, description,
+					site_url || "", vk_group_url || "", vk_photos_url || "", vk_video_url || "",
+					has_360 ? 1 : 0, has_ar ? 1 : 0, panorama_url || "", coords || "",
+					JSON.stringify(certifications || []),
+					JSON.stringify(live_stats || {}),
+					JSON.stringify(souvenirs || []),
+					JSON.stringify(professions || []),
+					JSON.stringify(tags || []),
+					status || "draft",
+					id,
+				],
 			);
 
 			res.json({ message: "Предприятие обновлено" });
@@ -167,25 +207,57 @@ router.delete(
 	},
 );
 
+// Get all tours (admin only)
+router.get("/tours", authenticate, requireRole("admin"), async (req, res) => {
+	try {
+		const tours = await dbAll(`
+			SELECT t.*, e.name as enterprise_name
+			FROM tours t
+			LEFT JOIN enterprises e ON t.enterprise_id = e.id
+			ORDER BY t.created_at DESC
+		`);
+		res.json({ tours: tours.map((t) => ({
+			...t,
+			tags: JSON.parse(t.tags || "[]"),
+			accessibility: JSON.parse(t.accessibility || "[]"),
+		})) });
+	} catch (err) {
+		console.error("Get all tours error:", err);
+		res.status(500).json({ error: "Ошибка загрузки экскурсий" });
+	}
+});
+
 // CRUD for tours (admin only)
 router.post("/tours", authenticate, requireRole("admin"), async (req, res) => {
 	try {
 		const {
-			enterprise_id,
-			title,
-			description,
-			duration,
-			cost,
-			status = "draft",
+			enterprise_id, title, description, duration, cost, max_group_size, min_age,
+			production_type, edu_program, accessibility, route_image_url,
+			safety_instructions, group_requirements, interactivity_level, physical_load,
+			ppe_required, food_on_site, has_souvenirs, has_degustation, has_photo_spots,
+			tags, contact_email, status = "draft",
 		} = req.body;
 
 		const result = await dbRun(
-			`INSERT INTO tours (enterprise_id, title, description, duration, cost, status)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-			[enterprise_id, title, description, duration, cost, status],
+			`INSERT INTO tours (
+				enterprise_id, title, description, duration, cost, max_group_size, min_age,
+				production_type, edu_program, accessibility, route_image_url,
+				safety_instructions, group_requirements, interactivity_level, physical_load,
+				ppe_required, food_on_site, has_souvenirs, has_degustation, has_photo_spots,
+				tags, contact_email, status
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[
+				enterprise_id, title, description, duration, cost || 0, max_group_size || 20, min_age || "6plus",
+				production_type || "", edu_program || "",
+				JSON.stringify(accessibility || []), route_image_url || "",
+				safety_instructions || "", group_requirements || "",
+				interactivity_level || 5, physical_load || 5,
+				ppe_required ? 1 : 0, food_on_site ? 1 : 0, has_souvenirs ? 1 : 0, has_degustation ? 1 : 0, has_photo_spots ? 1 : 0,
+				JSON.stringify(tags || []), contact_email || "", status,
+			],
 		);
 
-		res.status(201).json({ id: result.lastID });
+		res.status(201).json({ id: result.lastID, message: "Экскурсия создана" });
 	} catch (err) {
 		console.error("Create tour error:", err);
 		res.status(500).json({ error: "Ошибка создания экскурсии" });
@@ -199,12 +271,33 @@ router.put(
 	async (req, res) => {
 		try {
 			const { id } = req.params;
-			const { title, description, duration, cost, status } = req.body;
+			const {
+				enterprise_id, title, description, duration, cost, max_group_size, min_age,
+				production_type, edu_program, accessibility, route_image_url,
+				safety_instructions, group_requirements, interactivity_level, physical_load,
+				ppe_required, food_on_site, has_souvenirs, has_degustation, has_photo_spots,
+				tags, contact_email, status,
+			} = req.body;
 
 			await dbRun(
-				`UPDATE tours SET title = ?, description = ?, duration = ?, cost = ?, status = ?,
-       updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-				[title, description, duration, cost, status, id],
+				`UPDATE tours SET
+					enterprise_id = ?, title = ?, description = ?, duration = ?, cost = ?, max_group_size = ?, min_age = ?,
+					production_type = ?, edu_program = ?, accessibility = ?, route_image_url = ?,
+					safety_instructions = ?, group_requirements = ?, interactivity_level = ?, physical_load = ?,
+					ppe_required = ?, food_on_site = ?, has_souvenirs = ?, has_degustation = ?, has_photo_spots = ?,
+					tags = ?, contact_email = ?, status = ?,
+					updated_at = CURRENT_TIMESTAMP
+				WHERE id = ?`,
+				[
+					enterprise_id, title, description, duration, cost || 0, max_group_size || 20, min_age || "6plus",
+					production_type || "", edu_program || "",
+					JSON.stringify(accessibility || []), route_image_url || "",
+					safety_instructions || "", group_requirements || "",
+					interactivity_level || 5, physical_load || 5,
+					ppe_required ? 1 : 0, food_on_site ? 1 : 0, has_souvenirs ? 1 : 0, has_degustation ? 1 : 0, has_photo_spots ? 1 : 0,
+					JSON.stringify(tags || []), contact_email || "", status || "draft",
+					id,
+				],
 			);
 
 			res.json({ message: "Экскурсия обновлена" });

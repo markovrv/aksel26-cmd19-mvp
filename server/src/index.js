@@ -1,9 +1,13 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import path from "path";
+import { fileURLToPath } from "url";
 import { initDatabase } from "./db/init-db.js";
 import { seedDatabase } from "./db/seed.js";
 import { apiLimiter } from "./middleware/rateLimiter.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Routes
 import authRoutes from "./routes/auth.js";
@@ -15,6 +19,8 @@ import assistantRoutes from "./routes/assistant.js";
 import analyticsRoutes from "./routes/analytics.js";
 import adminRoutes from "./routes/admin.js";
 import settingsRoutes from "./routes/settings.js";
+import enterpriseLkRoutes from "./routes/enterprise-lk.js";
+import regionsRoutes from "./routes/regions.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -55,6 +61,12 @@ app.use("/api/assistant", assistantRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/enterprise-lk", enterpriseLkRoutes);
+app.use("/api/regions", regionsRoutes);
+
+// Serve static files from the client build directory
+const clientDist = path.join(__dirname, "../../client/dist");
+app.use(express.static(clientDist));
 
 // Error handling
 app.use((err, req, res, next) => {
@@ -62,9 +74,13 @@ app.use((err, req, res, next) => {
 	res.status(500).json({ error: "Внутренняя ошибка сервера" });
 });
 
-// 404 handler
+// 404 handler - serve index.html for SPA routes
 app.use((req, res) => {
-	res.status(404).json({ error: "Маршрут не найден" });
+	if (req.path.startsWith("/api/")) {
+		res.status(404).json({ error: "Маршрут не найден" });
+	} else {
+		res.sendFile(path.join(clientDist, "index.html"));
+	}
 });
 
 // Start server

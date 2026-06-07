@@ -66,6 +66,18 @@ export async function initDatabase() {
 		}
 	}
 
+	// Add columns for backward compatibility
+	for (const [table, column, def] of [
+		["enterprises", "panorama_url", "TEXT DEFAULT ''"],
+		["users", "updated_at", "DATETIME"],
+	]) {
+		try {
+			await dbRun(`ALTER TABLE ${table} ADD COLUMN ${column} ${def}`, []);
+		} catch (err) {
+			// Column already exists — ignore
+		}
+	}
+
 	console.log("✅ База данных инициализирована");
 	return true;
 }
