@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { getDb, dbRun, dbGet, dbAll } from "./db.js";
 
 const DEMO_ENTERPRISES = [
